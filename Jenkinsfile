@@ -8,4 +8,9 @@ pipeline {
             }
         }
     }
+    post {
+        always {
+            archiveArtifacts artifacts: 'deploy/am335x-ubuntu-22.04.2-console-armhf-*', onlyIfSuccessful: true
+        }
+    }
 }

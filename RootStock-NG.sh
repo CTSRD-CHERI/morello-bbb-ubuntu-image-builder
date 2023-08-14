@@ -69,7 +69,7 @@ check_project_config_legacy () {
 		echo "#" >> ${DIR}/.project
 		m4 -P ${DIR}/configs/legacy/${project_config}.conf >> ${DIR}/.project
 	else
-		echo "Invalid *.conf"
+		echo "Invalid *.conf 1"
 		exit
 	fi
 }
@@ -105,7 +105,7 @@ check_project_config () {
 		echo "#" >> ${DIR}/.project
 		m4 -P ${DIR}/configs/${project_config}.conf >> ${DIR}/.project
 	else
-		echo "Invalid *.conf"
+		echo "Invalid *.conf 2"
 		exit
 	fi
 }

@@ -3,7 +3,7 @@
 #export apt_proxy=192.168.1.12:3142/
 
 config=morello-ubuntu-2204-v5.10-ti-armhf
-filesize=8gb
+filesize=4gb
 rootfs="ubuntu-22.04.2-console-armhf"
 
 builduser="${USER}"

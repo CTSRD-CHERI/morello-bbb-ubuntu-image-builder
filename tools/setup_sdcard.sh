@@ -1,6 +1,6 @@
 #!/bin/bash -e
 #
-# Copyright (c) 2009-2023 Robert Nelson <robertcnelson@gmail.com>
+# Copyright (c) 2009-2024 Robert Nelson <robertcnelson@gmail.com>
 # Copyright (c) 2010 Mario Di Francesco <mdf-code@digitalexile.it>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -460,7 +460,7 @@ sfdisk_partition_layout () {
 	echo "sfdisk: [${sfdisk_options} ${media}]"
 	echo "sfdisk: [${partition_one_start_mb}M,${partition_one_size_mb}M,${partition_one_fstype},*]"
 	if [ "x${swap_enable}" = "xenable" ] ; then
-		echo "sfdisk: [${partition_two_start_mb}M,${partition_two_size_mb},0x82,-]"
+		echo "sfdisk: [${partition_two_start_mb}M,${partition_two_size_mb}M,0x82,-]"
 		echo "sfdisk: [${partition_three_start_mb}M,,,-]"
 	else
 		echo "sfdisk: [${partition_two_start_mb}M,,,-]"
@@ -469,7 +469,7 @@ sfdisk_partition_layout () {
 	if [ "x${swap_enable}" = "xenable" ] ; then
 		LC_ALL=C sfdisk ${sfdisk_options} "${media}" <<-__EOF__
 			${partition_one_start_mb}M,${partition_one_size_mb}M,${partition_one_fstype},*
-			${partition_two_start_mb}M,${partition_two_size_mb},0x82,-
+			${partition_two_start_mb}M,${partition_two_size_mb}M,0x82,-
 			${partition_three_start_mb}M,,,-
 		__EOF__
 	else
@@ -662,18 +662,21 @@ create_partitions () {
 		media_rootfs_partition=2
 	fi
 
+	#https://packages.debian.org/source/bookworm/e2fsprogs
+	#e2fsprogs (1.47.0) added orphan_file first added in v5.15.x
 	unset ext4_options
-
-	if [ ! "x${uboot_supports_csum}" = "xtrue" ] ; then
-		#Debian Stretch, mfks.ext4 default to metadata_csum, 64bit disable till u-boot works again..
+	unset test_mke2fs
+	LC_ALL=C mkfs.ext4 -V &> /tmp/mkfs
+	test_mkfs=$(cat /tmp/mkfs | grep mke2fs | grep 1.47 || true)
+	if [ "x${test_mkfs}" = "x" ] ; then
 		unset ext4_options
-		unset test_mke2fs
-		LC_ALL=C mkfs.ext4 -V &> /tmp/mkfs
-		test_mkfs=$(cat /tmp/mkfs | grep mke2fs | grep 1.43 || true)
-		if [ "x${test_mkfs}" = "x" ] ; then
-			unset ext4_options
+	else
+		if [ "x${bootloader_location}" = "xdd_spl_uboot_boot" ] ; then
+			ext4_options="-O ^metadata_csum,^64bit,^orphan_file"
+			echo "log: e2fsprogs (1.47.0) disabling metadata_csum,64bit,orphan_file"
 		else
-			ext4_options="-O ^metadata_csum,^64bit"
+			ext4_options="-O ^orphan_file"
+			echo "log: e2fsprogs (1.47.0) disabling orphan_file"
 		fi
 	fi
 
@@ -876,16 +879,29 @@ populate_boot () {
 	if [ "x${uboot_firwmare_dir}" = "xenable" ] ; then
 		#cp -rv ./${bootloader_distro_dir}/* "${TEMPDIR}/disk/"
 		if [ ! "x${bootloader_distro_mcu}" = "x" ] ; then
-			cp -v ./${bootloader_distro_mcu} "${TEMPDIR}/disk/"
+			if [ -f ./${bootloader_distro_mcu} ] ; then
+				cp -v ./${bootloader_distro_mcu} "${TEMPDIR}/disk/"
+			fi
 		fi
 		if [ ! "x${bootloader_distro_spl}" = "x" ] ; then
-			cp -v ./${bootloader_distro_spl} "${TEMPDIR}/disk/"
+			if [ -f ./${bootloader_distro_spl} ] ; then
+				cp -v ./${bootloader_distro_spl} "${TEMPDIR}/disk/"
+			fi
 		fi
 		if [ ! "x${bootloader_distro_img}" = "x" ] ; then
-			cp -v ./${bootloader_distro_img} "${TEMPDIR}/disk/"
+			if [ -f ./${bootloader_distro_img} ] ; then
+				cp -v ./${bootloader_distro_img} "${TEMPDIR}/disk/"
+			fi
+		fi
+		if [ ! "x${bootloader_distro_sysfw}" = "x" ] ; then
+			if [ -f ./${bootloader_distro_sysfw} ] ; then
+				cp -v ./${bootloader_distro_sysfw} "${TEMPDIR}/disk/"
+			fi
 		fi
 		if [ ! "x${bootloader_distro_dir_sysfw}" = "x" ] ; then
-			cp -v ./${bootloader_distro_dir_sysfw}/* "${TEMPDIR}/disk/"
+			if [ -d ./${bootloader_distro_dir_sysfw}/ ] ; then
+				cp -v ./${bootloader_distro_dir_sysfw}/* "${TEMPDIR}/disk/"
+			fi
 		fi
 	fi
 
@@ -1085,16 +1101,29 @@ populate_rootfs () {
 		if [ "x${extlinux_firmware_partition}" = "xenable" ] ; then
 			mkdir -p "${TEMPDIR}/disk/boot/firmware/extlinux/"
 			wfile="${TEMPDIR}/disk/boot/firmware/extlinux/extlinux.conf"
-			if [ -f "${TEMPDIR}/disk/${extlinux_firmware_file}" ] ; then
-				cp -v "${TEMPDIR}/disk/${extlinux_firmware_file}" ${wfile}
+			if [ -f "${TEMPDIR}/disk${extlinux_firmware_file}" ] ; then
+				cp -v "${TEMPDIR}/disk${extlinux_firmware_file}" ${wfile}
+
+				if [ -f "${TEMPDIR}/disk${extlinux_firmware_microsd}" ] ; then
+					cp -v "${TEMPDIR}/disk${extlinux_firmware_microsd}" "${TEMPDIR}/disk/boot/firmware/extlinux/microsd-extlinux.conf"
+				fi
+
+				if [ -f "${TEMPDIR}/disk${extlinux_firmware_nvme}" ] ; then
+					cp -v "${TEMPDIR}/disk${extlinux_firmware_nvme}" "${TEMPDIR}/disk/boot/firmware/extlinux/nvme-extlinux.conf"
+				fi
+
 				if [ "x${extlinux_flasher}" = "xenable" ] ; then
 					#sed -i -e 's:quiet:init=/usr/sbin/init-beagle-flasher:g' ${wfile}
-					sed -i -e 's:net.ifnames=0:net.ifnames=0 init=/usr/sbin/init-beagle-flasher:g' ${wfile}
-					if [ "x${board_hacks}" = "xbeagleplay" ] ; then
-						if [ -f "${TEMPDIR}/disk/boot/firmware/overlays/k3-am625-beagleplay-bcfserial-no-firmware.dtbo" ] ; then
-							echo "    fdtoverlays /overlays/k3-am625-beagleplay-bcfserial-no-firmware.dtbo" | sudo tee -a  ${wfile}
-						fi
-					fi
+					#sed -i -e 's:net.ifnames=0 quiet:net.ifnames=0 quiet init=/usr/sbin/init-beagle-flasher:g' ${wfile}
+					#sed -i -e 's:net.ifnames=0 systemd.unified_cgroup_hierarchy=false quiet:net.ifnames=0 systemd.unified_cgroup_hierarchy=false quiet init=/usr/sbin/init-beagle-flasher:g' ${wfile}
+					#if [ "x${board_hacks}" = "xbeagleplay" ] ; then
+					#	if [ -f "${TEMPDIR}/disk/boot/firmware/overlays/k3-am625-beagleplay-bcfserial-no-firmware.dtbo" ] ; then
+					#		echo "    fdtoverlays /overlays/k3-am625-beagleplay-bcfserial-no-firmware.dtbo" | sudo tee -a  ${wfile}
+					#	fi
+					#fi
+					sed -i -e 's:label microSD (default):label microSD:g' ${wfile}
+					sed -i -e 's:label copy microSD to eMMC:label copy microSD to eMMC (default):g' ${wfile}
+					sed -i -e 's:default microSD (default):default copy microSD to eMMC (default):g' ${wfile}
 				fi
 				echo "/boot/firmware/extlinux/extlinux.conf-"
 			else
@@ -1426,6 +1455,25 @@ populate_rootfs () {
 		fi
 
 		echo "/boot/uEnv.txt---------------"
+
+		#Starting in v6.5, overlays/dtbo files get dumped in the same directory as dtb's CONFIG_ARCH_WANT_FLAT_DTB_INSTALL
+		#https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/scripts/Makefile.dtbinst?h=v6.5-rc1#n37
+		#copy these under /boot/dtbs/${version}/overlays/ for older versions of u-boot.
+		if [ "x${kernel_override}" = "x" ] ; then
+			if [ -d ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/ ] ; then
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/*.dtb ${TEMPDIR}/disk/boot/dtbs/${select_kernel}/ || true
+				mkdir -p ${TEMPDIR}/disk/boot/dtbs/${select_kernel}/overlays/ || true
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/*.dtbo ${TEMPDIR}/disk/boot/dtbs/${select_kernel}/overlays/ || true
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/overlays/*.dtbo ${TEMPDIR}/disk/boot/dtbs/${select_kernel}/overlays/ || true
+			fi
+		else
+			if [ -d ${TEMPDIR}/disk/usr/lib/linux-image-${kernel_override}/ ] ; then
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${kernel_override}/*.dtb ${TEMPDIR}/disk/boot/dtbs/${kernel_override}/ || true
+				mkdir -p ${TEMPDIR}/disk/boot/dtbs/${kernel_override}/overlays/ || true
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${kernel_override}/*.dtbo ${TEMPDIR}/disk/boot/dtbs/${kernel_override}/overlays/ || true
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${kernel_override}/overlays/*.dtbo ${TEMPDIR}/disk/boot/dtbs/${kernel_override}/overlays/ || true
+			fi
+		fi
 	fi
 
 	cat ${wfile}
@@ -1450,7 +1498,7 @@ populate_rootfs () {
 		echo "#" >> ${wfile}
 		echo "# Auto generated by RootStock-NG: setup_sdcard.sh" >> ${wfile}
 		echo "#" >> ${wfile}
-
+		echo "# The root file system has fs_passno=1 as per fstab(5) for automatic fsck." >> ${wfile}
 		if [ "${BTRFS_FSTAB}" ] ; then
 			echo "${rootfs_drive}  /  btrfs  defaults,noatime  0  1" >> ${wfile}
 		else
@@ -1458,11 +1506,13 @@ populate_rootfs () {
 		fi
 
 		if [ "x${uboot_efi_mode}" = "xenable" ] ; then
-			echo "${boot_drive}  /boot/efi vfat defaults 0 0" >> ${wfile}
+			echo "# All other file systems have fs_passno=2 as per fstab(5) for automatic fsck." >> ${wfile}
+			echo "${boot_drive}  /boot/efi vfat user,uid=1000,gid=1000,defaults 0 2" >> ${wfile}
 		fi
 
 		if [ "x${uboot_firwmare_dir}" = "xenable" ] ; then
-			echo "${boot_drive}  /boot/firmware vfat defaults 0 0" >> ${wfile}
+			echo "# All other file systems have fs_passno=2 as per fstab(5) for automatic fsck." >> ${wfile}
+			echo "${boot_drive}  /boot/firmware vfat user,uid=1000,gid=1000,defaults 0 2" >> ${wfile}
 		fi
 
 		if [ "x${swap_enable}" = "xenable" ] ; then
@@ -1470,71 +1520,6 @@ populate_rootfs () {
 		fi
 
 		echo "debugfs  /sys/kernel/debug  debugfs  mode=755,uid=root,gid=gpio,defaults  0  0" >> ${wfile}
-
-		if [ ! -f ${TEMPDIR}/disk//etc/systemd/network/eth0.network ] ; then
-		if [ ! -f ${TEMPDIR}/disk/usr/bin/nmcli ] ; then
-		if [ "x${DISABLE_ETH}" != "xskip" ] ; then
-			wfile="${TEMPDIR}/disk/etc/network/interfaces"
-			if [ -f ${wfile} ] ; then
-				echo "# This file describes the network interfaces available on your system" > ${wfile}
-				echo "# and how to activate them. For more information, see interfaces(5)." >> ${wfile}
-				echo "" >> ${wfile}
-				echo "# The loopback network interface" >> ${wfile}
-				echo "auto lo" >> ${wfile}
-				echo "iface lo inet loopback" >> ${wfile}
-				echo "" >> ${wfile}
-				echo "# The primary network interface" >> ${wfile}
-
-				if [ "${DISABLE_ETH}" ] ; then
-					echo "#auto eth0" >> ${wfile}
-					echo "#iface eth0 inet dhcp" >> ${wfile}
-				else
-					echo "auto eth0"  >> ${wfile}
-					echo "iface eth0 inet dhcp" >> ${wfile}
-				fi
-
-				#if we have systemd & wicd-gtk, disable eth0 in /etc/network/interfaces
-				if [ -f ${TEMPDIR}/disk/lib/systemd/systemd ] ; then
-					if [ -f ${TEMPDIR}/disk/usr/bin/wicd-gtk ] ; then
-						sed -i 's/auto eth0/#auto eth0/g' ${wfile}
-						sed -i 's/allow-hotplug eth0/#allow-hotplug eth0/g' ${wfile}
-						sed -i 's/iface eth0 inet dhcp/#iface eth0 inet dhcp/g' ${wfile}
-					fi
-				fi
-
-				#if we have connman, disable eth0 in /etc/network/interfaces
-				if [ -f ${TEMPDIR}/disk/etc/init.d/connman ] ; then
-					sed -i 's/auto eth0/#auto eth0/g' ${wfile}
-					sed -i 's/allow-hotplug eth0/#allow-hotplug eth0/g' ${wfile}
-					sed -i 's/iface eth0 inet dhcp/#iface eth0 inet dhcp/g' ${wfile}
-				fi
-
-				echo "# Example to keep MAC address between reboots" >> ${wfile}
-				echo "#hwaddress ether DE:AD:BE:EF:CA:FE" >> ${wfile}
-
-				echo "" >> ${wfile}
-
-				echo "##connman: ethX static config" >> ${wfile}
-				echo "#connmanctl services" >> ${wfile}
-				echo "#Using the appropriate ethernet service, tell connman to setup a static IP address for that service:" >> ${wfile}
-				echo "#sudo connmanctl config <service> --ipv4 manual <ip_addr> <netmask> <gateway> --nameservers <dns_server>" >> ${wfile}
-
-				echo "" >> ${wfile}
-
-				echo "##connman: WiFi" >> ${wfile}
-				echo "#" >> ${wfile}
-				echo "#connmanctl" >> ${wfile}
-				echo "#connmanctl> tether wifi off" >> ${wfile}
-				echo "#connmanctl> enable wifi" >> ${wfile}
-				echo "#connmanctl> scan wifi" >> ${wfile}
-				echo "#connmanctl> services" >> ${wfile}
-				echo "#connmanctl> agent on" >> ${wfile}
-				echo "#connmanctl> connect wifi_*_managed_psk" >> ${wfile}
-				echo "#connmanctl> quit" >> ${wfile}
-			fi
-		fi
-		fi
-		fi
 
 		if [ -f ${TEMPDIR}/disk/var/www/index.html ] ; then
 			rm -f ${TEMPDIR}/disk/var/www/index.html || true
@@ -1604,12 +1589,6 @@ populate_rootfs () {
 		echo "vm.min_free_kbytes = ${usbnet_mem}" >> ${TEMPDIR}/disk/etc/sysctl.conf
 	fi
 
-	if [ "${need_wandboard_firmware}" ] ; then
-		http_brcm="https://raw.githubusercontent.com/Freescale/meta-fsl-arm-extra/master/recipes-bsp/broadcom-nvram-config/files/wandboard"
-		${dl_quiet} --directory-prefix="${TEMPDIR}/disk/lib/firmware/brcm/" ${http_brcm}/brcmfmac4329-sdio.txt
-		${dl_quiet} --directory-prefix="${TEMPDIR}/disk/lib/firmware/brcm/" ${http_brcm}/brcmfmac4330-sdio.txt
-	fi
-
 	if [ ! "x${new_hostname}" = "x" ] ; then
 		echo "Updating Image hostname too: [${new_hostname}]"
 
@@ -1618,9 +1597,9 @@ populate_rootfs () {
 		echo "127.0.1.1	${new_hostname}.localdomain	${new_hostname}" >> ${TEMPDIR}/disk${wfile}
 		echo "" >> ${TEMPDIR}/disk${wfile}
 		echo "# The following lines are desirable for IPv6 capable hosts" >> ${TEMPDIR}/disk${wfile}
-		echo "::1     localhost ip6-localhost ip6-loopback" >> ${TEMPDIR}/disk${wfile}
-		echo "ff02::1 ip6-allnodes" >> ${TEMPDIR}/disk${wfile}
-		echo "ff02::2 ip6-allrouters" >> ${TEMPDIR}/disk${wfile}
+		echo "::1		localhost ip6-localhost ip6-loopback" >> ${TEMPDIR}/disk${wfile}
+		echo "ff02::1		ip6-allnodes" >> ${TEMPDIR}/disk${wfile}
+		echo "ff02::2		ip6-allrouters" >> ${TEMPDIR}/disk${wfile}
 
 		wfile="/etc/hostname"
 		echo "${new_hostname}" > ${TEMPDIR}/disk${wfile}
@@ -1650,24 +1629,6 @@ populate_rootfs () {
 		fi
 	fi
 
-	if [ "x${board_hacks}" = "xj721e_evm" ] ; then
-		if [ -f ${TEMPDIR}/disk/etc/beagle-flasher/bbai64-microsd-to-emmc ] ; then
-			cp -v ${TEMPDIR}/disk/etc/beagle-flasher/bbai64-microsd-to-emmc ${TEMPDIR}/disk/etc/default/beagle-flasher
-		fi
-	fi
-
-	if [ "x${board_hacks}" = "xbbai64_staging" ] ; then
-		if [ -f ${TEMPDIR}/disk/etc/beagle-flasher/bbai64-staging-microsd-to-emmc ] ; then
-			cp -v ${TEMPDIR}/disk/etc/beagle-flasher/bbai64-staging-microsd-to-emmc ${TEMPDIR}/disk/etc/default/beagle-flasher
-		fi
-	fi
-
-	if [ "x${board_hacks}" = "xsk_am62" ]  ; then
-		if [ -f ${TEMPDIR}/disk/etc/beagle-flasher/am62-microsd-to-emmc ] ; then
-			cp -v ${TEMPDIR}/disk/etc/beagle-flasher/am62-microsd-to-emmc ${TEMPDIR}/disk/etc/default/beagle-flasher
-		fi
-	fi
-
 	if [ ! "x${flasher_script}" = "x" ] ; then
 		if [ -f ${TEMPDIR}/disk${flasher_script} ] ; then
 			cp -v ${TEMPDIR}/disk${flasher_script} ${TEMPDIR}/disk/etc/default/beagle-flasher
@@ -1675,13 +1636,16 @@ populate_rootfs () {
 	fi
 
 	if [ -f ${TEMPDIR}/disk/etc/default/generic-sys-mods ] ; then
+		echo "patching /etc/default/generic-sys-mods"
 		if [ "x${board_hacks}" = "xj721e_evm" ] || [ "x${board_hacks}" = "xbbai64_staging" ] ; then
 			echo "ARCH_SOC_MODULES=j721e" >> ${TEMPDIR}/disk/etc/default/generic-sys-mods
 		fi
 		if [ "x${board_hacks}" = "xsk_am62" ] || [ "x${board_hacks}" = "xbeagleplay" ] ; then
 			echo "ARCH_SOC_MODULES=am62" >> ${TEMPDIR}/disk/etc/default/generic-sys-mods
 		fi
-
+		if [ "x${board_hacks}" = "xbeagley_ai" ] ; then
+			echo "ARCH_SOC_MODULES=j722s" >> ${TEMPDIR}/disk/etc/default/generic-sys-mods
+		fi
 		if [ "x${swap_enable}" = "xenable" ] ; then
 			sed -i -e "s:ROOT_PARTITION=2:ROOT_PARTITION=3:g" ${TEMPDIR}/disk/etc/default/generic-sys-mods
 		fi
@@ -1689,9 +1653,15 @@ populate_rootfs () {
 	fi
 
 	if [ "x${board_hacks}" = "xbeagleplay" ] ; then
-		if [ -f ${TEMPDIR}/disk/etc/hostapd/hostapd.conf ] ; then
-			sed -i -e "s:BeagleBone-WXYZ:BeaglePlay-WXYZ:g" ${TEMPDIR}/disk/etc/hostapd/hostapd.conf
-			sed -i -e "s:passphrase=BeagleBone:passphrase=BeaglePlay:g" ${TEMPDIR}/disk/etc/hostapd/hostapd.conf
+		if [ ! -f ${TEMPDIR}/disk/etc/bbb.io/templates/services/SoftAp0.conf ] ; then
+			if [ -f ${TEMPDIR}/disk/etc/hostapd/hostapd.conf ] ; then
+				sed -i -e "s:BeagleBone-WXYZ:BeaglePlay-WXYZ:g" ${TEMPDIR}/disk/etc/hostapd/hostapd.conf
+				sed -i -e "s:passphrase=BeagleBone:passphrase=BeaglePlay:g" ${TEMPDIR}/disk/etc/hostapd/hostapd.conf
+			fi
+			if [ -f ${TEMPDIR}/disk/etc/hostapd/SoftAp0.conf ] ; then
+				sed -i -e "s:BeagleBone-WXYZ:BeaglePlay-WXYZ:g" ${TEMPDIR}/disk/etc/hostapd/SoftAp0.conf
+				sed -i -e "s:passphrase=BeagleBone:passphrase=BeaglePlay:g" ${TEMPDIR}/disk/etc/hostapd/SoftAp0.conf
+			fi
 		fi
 
 		if [ -f ${TEMPDIR}/disk/etc/systemd/network/mlan0.network ] ; then
@@ -1714,14 +1684,27 @@ populate_rootfs () {
 		fi
 		if [ ! "x${extlinux_dtb_vendor}" = "x" ] ; then
 			if [ ! "x${extlinux_dtb_fam}" = "x" ] ; then
-				cp -v ${TEMPDIR}/disk/boot/dtbs/${select_kernel}/${extlinux_dtb_vendor}/${extlinux_dtb_fam}*dtb ${TEMPDIR}/disk/boot/firmware/
-				if [ -d ${TEMPDIR}/disk/boot/dtbs/${select_kernel}/${extlinux_dtb_vendor}/overlays/ ] ; then
-					mkdir -p ${TEMPDIR}/disk/boot/firmware/overlays/
-					cp -v ${TEMPDIR}/disk/boot/dtbs/${select_kernel}/${extlinux_dtb_vendor}/overlays/*.dtbo ${TEMPDIR}/disk/boot/firmware/overlays/
+				mkdir -p ${TEMPDIR}/disk/boot/firmware/${extlinux_dtb_vendor}/ || true
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/${extlinux_dtb_vendor}/${extlinux_dtb_fam}*dtb ${TEMPDIR}/disk/boot/firmware/ || true
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/${extlinux_dtb_vendor}/${extlinux_dtb_fam}*dtb ${TEMPDIR}/disk/boot/firmware/${extlinux_dtb_vendor}/ || true
+				mkdir -p ${TEMPDIR}/disk/boot/firmware/overlays/ || true
+				cp ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/${extlinux_dtb_vendor}/*.dtbo ${TEMPDIR}/disk/boot/firmware/overlays/ || true
+				if [ -d ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/${extlinux_dtb_vendor}/overlays/ ] ; then
+					cp ${TEMPDIR}/disk/usr/lib/linux-image-${select_kernel}/${extlinux_dtb_vendor}/overlays/*.dtbo ${TEMPDIR}/disk/boot/firmware/overlays/ || true
 				fi
 			fi
 		fi
 		cp -v ${TEMPDIR}/disk/boot/initrd.img-${select_kernel} ${TEMPDIR}/disk/boot/firmware/initrd.img
+
+		if [ -f ${TEMPDIR}/disk/etc/bbb.io/templates/sysconf.txt ] ; then
+			cp ${TEMPDIR}/disk/etc/bbb.io/templates/sysconf.txt ${TEMPDIR}/disk/boot/firmware/sysconf.txt
+			echo "sysconf: [cat ${TEMPDIR}/disk/boot/firmware/sysconf.txt]"
+			cat ${TEMPDIR}/disk/boot/firmware/sysconf.txt
+			if [ -d ${TEMPDIR}/disk/etc/bbb.io/templates/services/ ] ; then
+				mkdir -p ${TEMPDIR}/disk/boot/firmware/services/enable/
+				cp -r ${TEMPDIR}/disk/etc/bbb.io/templates/services/* ${TEMPDIR}/disk/boot/firmware/services/
+			fi
+		fi
 	fi
 
 	if [ "x${emmc_flasher}" = "xenable" ] ; then
@@ -1733,10 +1716,6 @@ populate_rootfs () {
 	if [ "x${extlinux_flasher}" = "xenable" ] ; then
 		if [ -f ${TEMPDIR}/disk/etc/systemd/system/multi-user.target.wants/grow_partition.service ] ; then
 			rm -rf ${TEMPDIR}/disk/etc/systemd/system/multi-user.target.wants/grow_partition.service || true
-		fi
-	else
-		if [ -f ${TEMPDIR}/disk/etc/systemd/system/multi-user.target.wants/beagle-flasher-init-shutdown.service ] ; then
-			rm -rf ${TEMPDIR}/disk/etc/systemd/system/multi-user.target.wants/beagle-flasher-init-shutdown.service || true
 		fi
 	fi
 
@@ -2006,6 +1985,23 @@ while [ ! -z "$1" ] ; do
 		name=${2:-image}
 		# --img defaults to --img-10gb
 		gsize=${gsize:-10}
+		imagename=${name%.img}-${gsize}gb.img
+		media="${DIR}/${imagename}"
+		build_img_file="enable"
+		check_root
+		if [ -f "${media}" ] ; then
+			rm -rf "${media}" || true
+		fi
+
+		###For bigger storage let's assume closer to 100% capacity...
+		dd if=/dev/zero of="${media}" bs=1024 count=0 seek=$((1024 * (gsize * 1024)))
+		;;
+	--img-12gb)
+		###FIXME, someone with better sed skills can add this to ^. ;)
+		checkparm $2
+		name=${2:-image}
+		# --img defaults to --img-12gb
+		gsize=${gsize:-12}
 		imagename=${name%.img}-${gsize}gb.img
 		media="${DIR}/${imagename}"
 		build_img_file="enable"

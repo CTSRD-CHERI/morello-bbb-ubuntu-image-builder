@@ -4,13 +4,13 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh '/bin/bash ./ci/morello-bbb-ubuntu-armhf-2204-minimal-v5.10-ti.sh'
+                sh '/bin/bash ./ci/morello-bbb-ubuntu-armhf-2404-minimal-v5.10-ti.sh'
             }
         }
     }
     post {
         always {
-            archiveArtifacts artifacts: 'deploy/am335x-ubuntu-22.04.2-console-armhf-*', onlyIfSuccessful: true
+            archiveArtifacts artifacts: 'deploy/am335x-ubuntu-*-console-armhf-*', onlyIfSuccessful: true
         }
     }
 }

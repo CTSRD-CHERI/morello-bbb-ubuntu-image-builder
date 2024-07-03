@@ -5,7 +5,6 @@ pipeline {
         stage('Build') {
             steps {
 		 sh '/bin/bash ./ci/daily-ubuntu-armhf-2404-minimal-v5.10-ti-am335x.sh"
-#                sh '/bin/bash ./ci/morello-bbb-ubuntu-armhf-2404-minimal-v5.10-ti.sh'
             }
         }
     }

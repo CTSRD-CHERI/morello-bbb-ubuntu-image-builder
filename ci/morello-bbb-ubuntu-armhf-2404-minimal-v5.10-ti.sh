@@ -2,7 +2,8 @@
 
 #export apt_proxy=192.168.1.12:3142/
 
-config=morello-ubuntu-2404-v5.10-ti-armhf
+config=rcn-ee.net-console-ubuntu-2404-v5.10-ti-armhf-am335x.conf
+#config=morello-ubuntu-2404-v5.10-ti-armhf
 filesize=4gb
 rootfs="ubuntu-24.04-console-armhf"
 

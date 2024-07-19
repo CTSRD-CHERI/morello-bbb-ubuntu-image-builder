@@ -1,9 +1,20 @@
 # settings for USB mass storage gadget
 # see /usr/bin/bb-start-acm-ncm-rndis-old-gadget
 
+USB_RNDIS_DISABLED=yes
+#USB_ACM_DISABLED=yes
+#USB_NCM_DISABLED=yes
+
+usb_imanufacturer="BeagleBoneBlack"
+usb_iproduct="Morello Install/Recovery USB Disk"
+usb_iserialnumber="$(cat /proc/device-tree/serial-number)"
+usb_rndis=0
+usb_ncm=0
+usb_acm=0
+
 usb_ms_stall=0
 usb_ms_cdrom=0
 usb_ms_nofua=1
 usb_ms_removable=1
 usb_ms_ro=1
-usb_ms_file=/var/lib/cfumass.img
+usb_ms_imagefile=/var/lib/cfumass.img

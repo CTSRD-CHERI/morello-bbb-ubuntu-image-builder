@@ -1,0 +1,9 @@
+# settings for USB mass storage gadget
+# see /usr/bin/bb-start-acm-ncm-rndis-old-gadget
+
+usb_ms_stall=0
+usb_ms_cdrom=0
+usb_ms_nofua=1
+usb_ms_removable=1
+usb_ms_ro=1
+usb_ms_file=/var/lib/cfumass.img

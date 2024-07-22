@@ -13,6 +13,8 @@ if [ -d ./deploy ] ; then
 fi
 
 touch .notar
+wget -O ./target/keyring/cl.cam.ac.uk-archive-keyring.gpg https://www.cl.cam.ac.uk/deb/cl.cam.ac.uk-archive-keyring.gpg
+
 echo "./RootStock-NG.sh -c ${config}"
 ./RootStock-NG.sh -c ${config}
 

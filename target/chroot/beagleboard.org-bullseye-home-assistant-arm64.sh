@@ -109,7 +109,7 @@ setup_system () {
 setup_desktop () {
 	if [ -f /etc/bbb.io/templates/xfce4/xfce4-desktop.xml ] ; then
 		mkdir -p /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/ || true
-		cp -v /etc/bbb.io/templates/xfce4/xfce4-desktop.xml /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/
+		cp -v /etc/bbb.io/templates/xfce4/xfce4-*.xml /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/
 		chown -R ${rfs_username}:${rfs_username} /home/${rfs_username}/.config/
 	fi
 
@@ -144,9 +144,14 @@ setup_desktop () {
 }
 
 install_git_repos () {
-	git_repo="https://git.beagleboard.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
 	git_target_dir="/opt/source/dtb-5.10-ti"
 	git_branch="v5.10.x-ti-unified"
+	git_clone_branch
+
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_target_dir="/opt/source/dtb-6.1-Beagle"
+	git_branch="v6.1.x-Beagle"
 	git_clone_branch
 
 	git_repo="https://github.com/mvduin/py-uio"
@@ -157,15 +162,15 @@ install_git_repos () {
 	git_target_dir="/opt/source/spidev-test"
 	git_clone
 
-	git_repo="https://git.beagleboard.org/RobertCNelson/home-assistant.git"
+	git_repo="https://openbeagle.org/RobertCNelson/home-assistant.git"
 	git_target_dir="/opt/source/home-assistant"
 	git_clone
 	dpkg -i /opt/source/home-assistant/os-agent*.deb
 	debconf-set-selections <<<'homeassistant-supervised ha/machine-type select qemuarm-64'
 	dpkg -i /opt/source/home-assistant/homeassistant-supervised*.deb
 
-	sed -i -e 's:quiet:systemd.unified_cgroup_hierarchy=false quiet:g' /opt/u-boot/bb-u-boot-beagleplay/emmc-extlinux.conf
-	sed -i -e 's:quiet:systemd.unified_cgroup_hierarchy=false quiet:g' /opt/u-boot/bb-u-boot-beagleplay/microsd-extlinux.conf
+	sed -i -e 's:quiet:systemd.unified_cgroup_hierarchy=false quiet:g' /opt/u-boot/bb-u-boot-beagleboneai64/*-extlinux.conf
+	sed -i -e 's:quiet:systemd.unified_cgroup_hierarchy=false quiet:g' /opt/u-boot/bb-u-boot-beagleplay/*-extlinux.conf
 }
 
 other_source_links () {

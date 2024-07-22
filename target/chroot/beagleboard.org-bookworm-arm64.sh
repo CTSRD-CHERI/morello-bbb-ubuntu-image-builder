@@ -93,11 +93,18 @@ setup_system () {
 }
 
 setup_desktop () {
-	if [ -f /etc/bbb.io/templates/xfce4/xfce4-desktop.xml ] ; then
-		mkdir -p /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/ || true
-		cp -v /etc/bbb.io/templates/xfce4/xfce4-desktop.xml /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/
-		chown -R ${rfs_username}:${rfs_username} /home/${rfs_username}/.config/
+	#From: xfce4-settings
+	if [ -f /usr/share/xfce4/settings/appearance-install-theme ] ; then
+		if [ -f /etc/bbb.io/templates/xfce4/xfce4-desktop.xml ] ; then
+			mkdir -p /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/ || true
+			cp -v /etc/bbb.io/templates/xfce4/xfce4-*.xml /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/
+			chown -R ${rfs_username}:${rfs_username} /home/${rfs_username}/.config/
+		fi
 	fi
+
+#	if [ -f /etc/bbb.io/templates/beagleboard-logo.svg ] ; then
+#		update-alternatives --install /usr/share/images/desktop-base/desktop-background desktop-background /etc/bbb.io/templates/beagleboard-logo.svg 100
+#	fi
 
 	#Disable dpms mode and screen blanking
 	#Better fix for missing cursor
@@ -130,19 +137,25 @@ setup_desktop () {
 }
 
 install_git_repos () {
-	git_repo="https://git.beagleboard.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
 	git_target_dir="/opt/source/dtb-5.10-ti"
 	git_branch="v5.10.x-ti-unified"
 	git_clone_branch
 
-	git_repo="https://git.beagleboard.org/beagleboard/BeagleBoard-DeviceTrees.git"
-	git_target_dir="/opt/source/dtb-6.3"
-	git_branch="v6.3.x"
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_target_dir="/opt/source/dtb-6.1-Beagle"
+	git_branch="v6.1.x-Beagle"
 	git_clone_branch
 
-	git_repo="https://github.com/mvduin/py-uio"
-	git_target_dir="/opt/source/py-uio"
-	git_clone
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_target_dir="/opt/source/dtb-6.6-Beagle"
+	git_branch="v6.6.x-Beagle"
+	git_clone_branch
+
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_target_dir="/opt/source/dtb-6.9"
+	git_branch="v6.9.x"
+	git_clone_branch
 
 	git_repo="https://github.com/rm-hull/spidev-test"
 	git_target_dir="/opt/source/spidev-test"

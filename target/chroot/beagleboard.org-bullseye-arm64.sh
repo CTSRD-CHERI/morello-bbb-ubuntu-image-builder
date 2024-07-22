@@ -95,7 +95,7 @@ setup_system () {
 setup_desktop () {
 	if [ -f /etc/bbb.io/templates/xfce4/xfce4-desktop.xml ] ; then
 		mkdir -p /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/ || true
-		cp -v /etc/bbb.io/templates/xfce4/xfce4-desktop.xml /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/
+		cp -v /etc/bbb.io/templates/xfce4/xfce4-*.xml /home/${rfs_username}/.config/xfce4/xfconf/xfce-perchannel-xml/
 		chown -R ${rfs_username}:${rfs_username} /home/${rfs_username}/.config/
 	fi
 
@@ -130,9 +130,24 @@ setup_desktop () {
 }
 
 install_git_repos () {
-	git_repo="https://git.beagleboard.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
 	git_target_dir="/opt/source/dtb-5.10-ti"
 	git_branch="v5.10.x-ti-unified"
+	git_clone_branch
+
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_target_dir="/opt/source/dtb-6.1-Beagle"
+	git_branch="v6.1.x-Beagle"
+	git_clone_branch
+
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_target_dir="/opt/source/dtb-6.6-Beagle"
+	git_branch="v6.6.x-Beagle"
+	git_clone_branch
+
+	git_repo="https://openbeagle.org/beagleboard/BeagleBoard-DeviceTrees.git"
+	git_target_dir="/opt/source/dtb-6.9"
+	git_branch="v6.9.x"
 	git_clone_branch
 
 	git_repo="https://github.com/mvduin/py-uio"

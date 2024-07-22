@@ -6,7 +6,7 @@ time=$(date +%Y-%m-%d)
 mirror_dir="/var/www/html/rcn-ee.us/rootfs/eewiki"
 DIR="$PWD"
 
-export apt_proxy=192.168.1.12:3142/
+export apt_proxy=192.168.1.10:3142/
 
 if [ -d ./deploy ] ; then
 	sudo rm -rf ./deploy || true
@@ -28,7 +28,7 @@ else
 fi
 
 debian_buster="debian-10.13"
-debian_bullseye="debian-11.7"
+debian_bullseye="debian-11.9"
 ubuntu_bionic="ubuntu-18.04.6"
 ubuntu_focal="ubuntu-20.04.4"
 

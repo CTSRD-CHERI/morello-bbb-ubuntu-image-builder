@@ -14,6 +14,7 @@ sudo sed -i 's/^#*PermitRootLogin.*$/PermitRootLogin no/g' "${tempdir}/etc/ssh/s
 sudo sed -i 's/^#*PasswordAuthentication.*$/PasswordAuthentication no/g' "${tempdir}/etc/ssh/sshd_config"
 
 echo "Configuring USB gadget device to use mass storage image at /var/lib/cfumass.img"
-sudo cp -v "${DIR}/morello/bb-start-acm-ncm-rndis-old-gadget" "${tempdir}/usr/bin/bb-start-acm-ncm-rndis-old-gadget"
+#sudo cp -v "${DIR}/morello/bb-start-acm-ncm-rndis-old-gadget" "${tempdir}/usr/bin/bb-start-acm-ncm-rndis-old-gadget"
+sudo cp -v "${DIR}/morello/usb-oem" "${tempdir}/etc/default/usb-oem"
 
 echo "Done image customisations"

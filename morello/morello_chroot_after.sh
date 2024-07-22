@@ -6,6 +6,7 @@ echo "Adding default SSH key"
 sudo mkdir -p "${tempdir}/home/morello/.ssh"
 sudo chmod 700 "${tempdir}/home/morello/.ssh"
 sudo cp -v "${DIR}/morello/morello-bbb.pub" "${tempdir}/home/morello/.ssh/authorized_keys"
+cat ${DIR}/morello/morello-bbb-recovery.pub | sudo tee -a "${tempdir}/home/morello/.ssh/authorized_keys"
 sudo chmod 600 "${tempdir}/home/morello/.ssh/authorized_keys"
 sudo chown -R 1000:1000 "${tempdir}/home/morello/.ssh"
 
